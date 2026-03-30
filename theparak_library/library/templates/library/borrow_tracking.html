@@ -1,0 +1,263 @@
+﻿{% extends "library/base.html" %}
+
+{% block title %}ติดตามการยืม - Theparak Library{% endblock %}
+
+{% block content %}
+<div class="container-lg py-5">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h1 class="fw-bold mb-2 text-white">
+                        <i class="fas fa-book-reader text-primary"></i> ติดตามการยืม
+                    </h1>
+                    <p class="text-white">ติดตามกิจกรรมการยืมของนักเรียนและค่าปรับทั้งหมด</p>
+                </div>
+                <div>
+                    <a href="{% url 'library:index' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> กลับหน้าหลัก
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tracking Table -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-body p-4">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><i class="fas fa-user"></i> รหัสนักเรียน</th>
+                                    <th><i class="fas fa-info-circle"></i> ชื่อ</th>
+                                    <th><i class="fas fa-info-circle"></i> นามสกุล</th>
+                                    <th><i class="fas fa-book"></i> สถานะ</th>
+                                    <th><i class="fas fa-calendar-days"></i> จำนวนวันที่ยืม</th>
+                                    <th><i class="fas fa-coins"></i> ค่าปรับ (บาท)</th>
+                                    <th><i class="fas fa-details"></i> รายละเอียด</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in student_data %}
+                                <tr class="{% if student.penalty > 0 %}table-danger{% elif student.status == 'Borrowing' %}table-warning{% endif %}">
+                                    <td>
+                                        <strong>{{ student.user.username }}</strong>
+                                    </td>
+                                    <td>{{ student.user.first_name|default:"N/A" }}</td>
+                                    <td>{{ student.user.last_name|default:"N/A" }}</td>
+                                    <td>
+                                        {% if student.status == 'Borrowing' %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-hourglass-half"></i> กำลังยืม
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check-circle"></i> ไม่มี
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold">{{ student.days_borrowed }}</span> วัน
+                                    </td>
+                                    <td>
+                                        {% if student.penalty > 0 %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-exclamation-triangle"></i> ฿{{ student.penalty }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-success">
+                                                <i class="fas fa-check"></i> ฿0
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if student.active_borrowing %}
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#detailsModal{{ student.user.id }}">
+                                                    <i class="fas fa-eye"></i> ดู
+                                                </button>
+                                                {% if student.penalty > 0 %}
+                                                    <a href="{% url 'library:print_penalty_receipt' student.active_borrowing.id %}" class="btn btn-warning" target="_blank">
+                                                        <i class="fas fa-receipt"></i> ใบเสร็จ
+                                                    </a>
+                                                {% endif %}
+                                                <a href="#" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmReturnModal" data-return-url="{% url 'library:mark_book_returned' student.active_borrowing.id %}">
+                                                    <i class="fas fa-check"></i> คืนหนังสือ
+                                                </a>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="fas fa-inbox"></i> ไม่พบข้อมูลนักเรียน
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Statistics -->
+                    <div class="row mt-4 pt-3 border-top">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h5 class="text-muted mb-2">นักเรียนทั้งหมด</h5>
+                                <h3 class="fw-bold text-primary">{{ student_data|length }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h5 class="text-muted mb-2">กำลังยืมอยู่</h5>
+                                <h3 class="fw-bold text-warning" id="borrowing-count">0</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h5 class="text-muted mb-2">ค่าปรับทั้งหมด</h5>
+                                <h3 class="fw-bold text-danger" id="total-penalty">฿0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal for Returning Book -->
+<div class="modal fade" id="confirmReturnModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning border-bottom">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="fas fa-question-circle"></i> ยืนยันการคืนหนังสือ
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">คุณต้องการยืนยันว่าได้รับหนังสือคืนแล้วหรือไม่?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> ยกเลิก
+                </button>
+                <button type="button" class="btn btn-success" id="confirmReturnBtn">
+                    <i class="fas fa-check"></i> ใช่ คืนหนังสือ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Details Modals -->
+{% for student in student_data %}
+{% if student.active_borrowing %}
+<div class="modal fade" id="detailsModal{{ student.user.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-light border-bottom">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-book"></i> รายละเอียดการยืม - {{ student.user.username }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">ชื่อหนังสือ</label>
+                    <p class="form-control-plaintext">{{ student.active_borrowing.book.title }}</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">วันที่ยืม</label>
+                    <p class="form-control-plaintext">{{ student.active_borrowing.borrow_date|date:"d M Y, H:i" }}</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">วันครบกำหนด</label>
+                    <p class="form-control-plaintext">{{ student.active_borrowing.due_date|date:"d M Y, H:i" }}</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">จำนวนวันที่ยืม</label>
+                    <p class="form-control-plaintext">{{ student.days_borrowed }} วัน</p>
+                </div>
+                {% if student.penalty > 0 %}
+                <div class="alert alert-danger mb-3">
+                    <strong><i class="fas fa-exclamation-triangle"></i> ค่าปรับเกินกำหนด</strong><br>
+                    เกินกำหนด: {{ student.days_borrowed|add:"-7" }} days<br>
+                    ค่าปรับ: <strong>฿{{ student.penalty }}</strong> (฿5 ต่อวัน)
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<style>
+.table-hover tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.05);
+}
+
+.badge {
+    font-size: 0.85rem;
+    padding: 0.45rem 0.65rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Calculate borrowing count and total penalties
+    let borrowingCount = 0;
+    let totalPenalty = 0;
+    
+    const rows = document.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const statusCell = row.querySelector('td:nth-child(4)');
+        const penaltyCell = row.querySelector('td:nth-child(5)');
+        
+        if (statusCell && statusCell.textContent.includes('กำลังยืม')) {
+            borrowingCount++;
+        }
+        
+        // Extract penalty amount from penalty cell (next cell)
+        const penaltyCellData = row.querySelector('td:nth-child(6)');
+        if (penaltyCellData) {
+            const penaltyText = penaltyCellData.textContent;
+            const match = penaltyText.match(/฿(\d+)/);
+            if (match) {
+                totalPenalty += parseInt(match[1]);
+            }
+        }
+    });
+    
+    // Update the statistics
+    document.getElementById('borrowing-count').textContent = borrowingCount;
+    document.getElementById('total-penalty').textContent = '฿' + totalPenalty;
+    
+    // Handle return confirmation modal
+    const confirmReturnModal = document.getElementById('confirmReturnModal');
+    const confirmReturnBtn = document.getElementById('confirmReturnBtn');
+    let returnUrl = '';
+    
+    confirmReturnModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        returnUrl = button.getAttribute('data-return-url');
+    });
+    
+    confirmReturnBtn.addEventListener('click', function() {
+        if (returnUrl) {
+            window.location.href = returnUrl;
+        }
+    });
+});
+</script>
+{% endblock %}
