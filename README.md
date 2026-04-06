@@ -144,10 +144,39 @@ The project includes several management utilities:
 
 ## 🐛 Troubleshooting
 
+### Virtual Environment Activation Issues (Windows PowerShell)
+
+#### Error: "cannot be loaded because running scripts is disabled"
+```powershell
+# Enable script execution for current user
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# Then activate venv
+.\venv\Scripts\Activate.ps1
+```
+
+#### Virtual Environment folder not found
+```powershell
+# Ensure you're in the correct directory
+cd Theparak-Library
+
+# Recreate virtual environment
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+#### Using Command Prompt instead (Alternative)
+```cmd
+# If PowerShell doesn't work, use Command Prompt instead
+venv\Scripts\activate.bat
+```
+
 ### MySQL Connection Error
 - Ensure XAMPP MySQL service is running
 - Verify database credentials in `theparak_library/settings.py`
 - Check `DATABASES` configuration
+- Test connection: `mysql -u root -p` (password is empty, just press Enter)
 
 ### Port 8000 Already in Use
 ```bash
@@ -158,6 +187,21 @@ python manage.py runserver 8001  # Use different port
 ```bash
 python manage.py makemigrations
 python manage.py migrate --run-syncdb
+```
+
+### Python Not Found
+```bash
+# Check Python installation
+python --version
+
+# If not found, install Python 3.8+ from python.org
+# Ensure "Add Python to PATH" is checked during installation
+```
+
+### "No module named 'django'"
+```bash
+# Make sure virtual environment is activated, then reinstall
+pip install -r requirements.txt
 ```
 
 ---
