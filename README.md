@@ -168,7 +168,7 @@ This project is developed as part of ICT22667 Digital Library coursework.
 ---
 
 ## 👤 Author
-D4rkSинister
+D4rkSinister
 
 ## 🤝 Contributing
 Pull requests are welcome. For major changes, please open an issue first.
